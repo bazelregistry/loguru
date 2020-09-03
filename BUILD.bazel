@@ -1,0 +1,37 @@
+load("@rules_cc//cc:defs.bzl", "cc_library")
+
+config_setting(
+    name = "compiler_cl",
+    constraint_values = ["@bazel_tools//platforms:windows"],
+)
+
+config_setting(
+    name = "compiler_clang_cl",
+    values = {"compiler": "clang-cl"},
+    constraint_values = ["@bazel_tools//platforms:windows"],
+)
+
+_clang_copts = [
+    # disable all warnings for upstream
+    "-w"
+]
+
+_msvc_copts = [
+    # disable all warnings for upstream
+    "/w",
+]
+
+_copts = select({
+    ":compiler_cl": _msvc_copts,
+    ":compiler_clang_cl": _msvc_copts + ["-Xclang " + f for f in _clang_copts],
+    "//conditions:default": _clang_copts,
+})
+
+cc_library(
+    name = "loguru",
+    copts = _copts,
+    srcs = ["loguru.cpp"],
+    hdrs = ["loguru.hpp"],
+    defines = ["LOGURU_WITH_STREAMS=1"],
+    visibility = ["//visibility:public"],
+)
