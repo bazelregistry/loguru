@@ -102,6 +102,12 @@ Website: www.ilikebigbits.com
 #include <sal.h>	// Needed for _In_z_ etc annotations
 #endif
 
+#if defined(__linux__) || defined(__APPLE__)
+#define LOGURU_SYSLOG 1
+#else
+#define LOGURU_SYSLOG 0
+#endif
+
 // ----------------------------------------------------------------------------
 
 #ifndef LOGURU_EXPORT
@@ -131,7 +137,7 @@ Website: www.ilikebigbits.com
 #endif
 
 #ifdef LOGURU_CATCH_SIGABRT
-	#error "You are defining LOGURU_CATCH_SIGABRT. his is for older versions of Loguru. You should now instead set the options passed to loguru::init"
+	#error "You are defining LOGURU_CATCH_SIGABRT. This is for older versions of Loguru. You should now instead set the options passed to loguru::init"
 #endif
 
 #ifndef LOGURU_VERBOSE_SCOPE_ENDINGS
@@ -332,13 +338,13 @@ namespace loguru
 		Verbosity_8       = +8,
 		Verbosity_9       = +9,
 
-		// Don not use higher verbosity levels, as that will make grepping log files harder.
+		// Do not use higher verbosity levels, as that will make grepping log files harder.
 		Verbosity_MAX     = +9,
 	};
 
 	struct Message
 	{
-		// You would generally print a Message by just concating the buffers without spacing.
+		// You would generally print a Message by just concatenating the buffers without spacing.
 		// Optionally, ignore preamble and indentation.
 		Verbosity   verbosity;   // Already part of preamble
 		const char* filename;    // Already part of preamble
@@ -436,7 +442,7 @@ namespace loguru
 	struct Options
 	{
 		// This allows you to use something else instead of "-v" via verbosity_flag.
-		// Set to nullptr to if you don't want Loguru to parse verbosity from the args.'
+		// Set to nullptr if you don't want Loguru to parse verbosity from the args.
 		const char* verbosity_flag = "-v";
 
 		// loguru::init will set the name of the calling thread to this.
@@ -447,7 +453,7 @@ namespace loguru
 		// To always set a thread name, use loguru::set_thread_name instead.
 		const char* main_thread_name = "main thread";
 
-		SignalOptions signals;
+		SignalOptions signal_options;
 	};
 
 	/*  Should be called from the main thread.
@@ -457,7 +463,7 @@ namespace loguru
 			* Working dir logged
 			* Optional -v verbosity flag parsed
 			* Main thread name set to "main thread"
-			* Explanation of the preamble (date, threanmae etc) logged
+			* Explanation of the preamble (date, thread name, etc) logged
 
 		loguru::init() will look for arguments meant for loguru and remove them.
 		Arguments meant for loguru are:
@@ -537,6 +543,14 @@ namespace loguru
 	*/
 	LOGURU_EXPORT
 	bool add_file(const char* path, FileMode mode, Verbosity verbosity);
+
+	LOGURU_EXPORT
+	// Send logs to syslog with LOG_USER facility (see next call)
+	bool add_syslog(const char* app_name, Verbosity verbosity);
+	LOGURU_EXPORT
+	// Send logs to syslog with your own choice of facility (LOG_USER, LOG_AUTH, ...)
+	// see loguru.cpp: syslog_log() for more details.
+	bool add_syslog(const char* app_name, Verbosity verbosity, int facility);
 
 	/*  Will be called right before abort().
 		You can for instance use this to print custom error messages, or throw an exception.
@@ -711,15 +725,15 @@ namespace loguru
 	void set_thread_name(const char* name);
 
 	/* Returns the thread name for this thread.
-	   On OSX this will return the system thread name (settable from both within and without Loguru).
-	   On other systems it will return whatever you set in set_thread_name();
+	   On most *nix systems this will return the system thread name (settable from both within and without Loguru).
+	   On other systems it will return whatever you set in `set_thread_name()`;
 	   If no thread name is set, this will return a hexadecimal thread id.
-	   length should be the number of bytes available in the buffer.
+	   `length` should be the number of bytes available in the buffer.
 	   17 is a good number for length.
-	   right_align_hext_id means any hexadecimal thread id will be written to the end of buffer.
+	   `right_align_hex_id` means any hexadecimal thread id will be written to the end of buffer.
 	*/
 	LOGURU_EXPORT
-	void get_thread_name(char* buffer, unsigned long long length, bool right_align_hext_id);
+	void get_thread_name(char* buffer, unsigned long long length, bool right_align_hex_id);
 
 	/* Generates a readable stacktrace as a string.
 	   'skip' specifies how many stack frames to skip.
